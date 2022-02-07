@@ -9,15 +9,16 @@ int echor = 5;
 int trigr = 4;
 
 //H-bridge pins (motor control)
-#define ENA 11
-#define ENB 10
-#define IN1 9 //purple
-#define IN2 8 //light gray
-#define IN3 7 //white
-#define IN4 6//black 
+#define ENA 1
+#define ENB 39
+#define IN1 2 //purple
+#define IN2 42 //light gray
+#define IN3 41 //white
+#define IN4 40//black 
 #define LEDPIN A2
 #define BUTTONPIN A3
-
+// Pins for Tslots:
+// 
 //speed of robot maybe add dif. speeds
 #define rightmotor 255
 #define leftmotor 255
