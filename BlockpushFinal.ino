@@ -1,12 +1,12 @@
 #include <QTRSensors.h>// Library for IR sensors
 
 //ultrasonic sensor pins might need to be changed
-int echol = 13;
-int trigl = 12;
-int echoc = 5;
-int trigc = 4;
-int echor = 3;
-int trigr = 2;
+int echol = 8;
+int trigl = 18;
+int echoc = 17;
+int trigc = 16;
+int echor = 5;
+int trigr = 4;
 
 //H-bridge pins (motor control)
 #define ENA 11
