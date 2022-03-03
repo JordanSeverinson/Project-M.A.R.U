@@ -19,16 +19,14 @@ int trigr = 5;
 #define IN2 2 //light gray
 #define IN3 40 //white
 #define IN4 41//black 
-#define LEDPIN A2
-#define BUTTONPIN A3
+#define LEDPIN 12
+#define BUTTONPIN 11
 // Pins for Tslots:
 // 6 Brown LED and 7 Black Transistor output
 
 //speed of robot maybe add dif. speeds
-#define rightmotor 255
-#define leftmotor 255
-#define carspeed 126
-#define ramspeed 126
+#define carspeed 120
+#define ramspeed 200
 
 //initial distances on sensors are zero
 int rightdistance = 0, leftdistance = 0, centerdistance = 0;
@@ -50,10 +48,17 @@ uint16_t sensorValues[SensorCount];
 // non blocking nav delay
 long int motorStartTime;
 long int currentMotorTime;
-bool movingForward, movingRight, movingLeft = false;
+long int turnStart;
+long int turnCurrent;
+long int stopTimer;
+long int currentStop;
+bool movingForward, movingRight, movingLeft,isStopped = false;
+bool isDetecting;
 int forwardDelay = 100; // delay for motor control
-int turnDelay = 150;
+int turnDelay = 100;
+int stopDelay = 400;
 //direction functions
+int previousTime; // pushbutton timer
 
 void forward() {
   digitalWrite(IN1, HIGH);
@@ -99,23 +104,35 @@ void left() {
 }
 
 void stopp() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
   digitalWrite(ENA, LOW);
   digitalWrite(ENB, LOW);
-  delay(50);
 }
-
+void motorBuffer()
+{
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+  digitalWrite(ENA, LOW);
+  digitalWrite(ENB, LOW);
+  delay(10);
+}
+/*
 void fine_delay() {
   delay(150);
   stopp();
-  detection();
 
 }
-
+*/
 //IR sensor detection function
-void detection()        //Measuring three angles(0.90.179) *********************************************************************
+bool detection(bool isDetecting)        //Measuring three angles(0.90.179) *********************************************************************
 {
   qtr.read(sensorValues);
-  /* FOR DEBUG
+  /*
     Serial.print("Front Left IR sensor: ");
     Serial.println(sensorValues[0]);
     Serial.print("Front Right IR sensor: ");
@@ -124,19 +141,21 @@ void detection()        //Measuring three angles(0.90.179) *********************
     Serial.println(sensorValues[2]);
     Serial.print("Back Left IR sensor: ");
     Serial.println(sensorValues[3]);
-  */
-  if (sensorValues[0] < 150 || sensorValues[1] < 150) // front 2 sensors
+    delay(500);*/
+  if (sensorValues[0] < 100 || sensorValues[1] < 100) // front 2 sensors
   {
     back();
     delay(500);
-
+    isDetecting = false;
   }
-  else if (sensorValues[2] < 150 || sensorValues[3] < 150)// back 2 sensors
+  else if (sensorValues[2] < 100 || sensorValues[3] < 100)// back 2 sensors
   {
     forward();
     delay(500);
+    isDetecting = false;
+    
   }
-
+  return isDetecting;
 }
 
 //ultrasonic left sensor function
@@ -148,8 +167,8 @@ int distance_left() {
   digitalWrite(trigl, LOW);
   float left_distance = pulseIn(echol, HIGH, TIMEOUT);
   left_distance = (left_distance * 0.034) / 2;
-  //Serial.print("Left: ");
-  //Serial.println(left_distance);
+  Serial.print("Left: ");
+  Serial.println(left_distance);
   return (int)left_distance;
 }
 
@@ -162,8 +181,8 @@ int distance_center() {
   digitalWrite(trigc, LOW);
   float center_distance = pulseIn(echoc, HIGH, TIMEOUT);
   center_distance = (center_distance * 0.034) / 2;
-  //Serial.print("Center: ");
-  //Serial.println(center_distance);
+  Serial.print("Center: ");
+  Serial.println(center_distance);
   return (int)center_distance;
 }
 
@@ -176,8 +195,8 @@ int distance_right() {
   digitalWrite(trigr, LOW);
   float right_distance = pulseIn(echor, HIGH, TIMEOUT);
   right_distance = (right_distance * 0.034) / 2;
-  //Serial.print("Right: ");
-  //Serial.println(right_distance);
+  Serial.print("Right: ");
+  Serial.println(right_distance);
   return (int)right_distance;
 }
 void setup() {// ***********************************************************************************************************
@@ -211,7 +230,7 @@ void setup() {// ***************************************************************
   qtr.setTypeRC();
   qtr.setSensorPins((const uint8_t[]) {7, 4, 33, 21}, SensorCount);// start with top left IR sensor and go clockwise
   int countdown = 0;
-  //button code
+  //*********************************************************** Start button *********************************************************
   while (!digitalRead(BUTTONPIN))
   {
     Serial.println(digitalRead(BUTTONPIN)); // is currently floating
@@ -231,19 +250,31 @@ void setup() {// ***************************************************************
     }
   }
   digitalWrite(LEDPIN, LOW);
+  //********************************************************** Start button **********************************************************
   rotCnt = 0;
   motorStartTime = -200;
+  isDetecting = false;
 }
 
 void loop() // **************************************************************************************************************
 {
   currentMotorTime = millis();
+  turnCurrent = millis();// extra timers
+  currentStop = millis();
   centerdistance = distance_center();
   rightdistance = distance_right();
   leftdistance = distance_left();
-  detection();
-  if (centerdistance <= 50)
+  isDetecting = detection(isDetecting);
+  while(isDetecting)
   {
+    isDetecting = detection(isDetecting);
+  }
+  if (centerdistance <= 50 && centerdistance !=0)
+  {
+    if(centerdistance < 5)
+    {
+      isDetecting = true;
+    }
     if (!movingForward || (currentMotorTime - motorStartTime) > forwardDelay)
     {
       movingLeft = false;
@@ -255,32 +286,39 @@ void loop() // *****************************************************************
     rotCnt = 0;
     //Serial.println("Count reset");
   }
-  else if (leftdistance <= 50)
+  else if (leftdistance <= 50 && leftdistance !=0)
   {
-    if (!movingLeft || (currentMotorTime - motorStartTime) > turnDelay)
+    if (!movingRight || (turnCurrent - turnStart) > turnDelay)
     {
+      motorBuffer();
       movingLeft = true;
-      movingRight = false;
+      movingRight = true;
       movingForward = false;
-      left();
-      motorStartTime = millis();
+      //stopp(); // added stop
+      right();
+      turnStart = millis();
     }
+    rotCnt = 0;
   }
-  else if (rightdistance <= 50)
+  else if (rightdistance <= 50 && rightdistance !=0)
   {
-    if (!movingRight || (currentMotorTime - motorStartTime) > turnDelay)
+    if (!movingRight || (turnCurrent - turnStart) > turnDelay)
     {
+      motorBuffer();
       movingLeft = false;
       movingRight = true;
       movingForward = false;
-      right();
-      motorStartTime = millis();
+      //motorBuffer(); // added stop
+      left();
+      turnStart = millis();
     }
+    rotCnt = 0;
   }
-  else if (rotCnt >= 13)
+  else if (rotCnt >= 13) // Rotation change code
   {
     if (!movingForward || (currentMotorTime - motorStartTime) > forwardDelay)
     {
+      motorBuffer();
       movingForward = true;
       forward();
       motorStartTime = millis();
@@ -289,31 +327,26 @@ void loop() // *****************************************************************
     dir = dir ^ 1;
     //Serial.println("dir has changed");
   }
-  else
-  {
-    if (dir)
-    {
-      if (!movingLeft || (currentMotorTime - motorStartTime) > turnDelay) //move left
-      {
-        movingLeft = true;
-        movingRight = false;
-        movingForward = false;
-        left();
-        motorStartTime = millis();
-      }
-    }
     else
     {
-      if (!movingRight || (currentMotorTime - motorStartTime) > turnDelay)//move right
+      if (!movingRight || (turnCurrent - turnStart) > turnDelay)//move right
       {
+        if(movingRight)
+        {
+          if(!isStopped || currentStop - stopTimer < stopDelay)
+          {
+            stopp();
+            isStopped = true;
+            stopTimer = millis();
+          }
+        }
         movingLeft = false;
         movingRight = true;
         movingForward = false;
         right();
-        motorStartTime = millis();
+        turnStart = millis();
       }
     }
     rotCnt = rotCnt + 1;
-  }
-  detection();
+  isDetecting = detection(isDetecting);
 }
