@@ -1,4 +1,6 @@
 #include <QTRSensors.h>// Library for IR sensors
+#include <Wire.h> // i2c communication
+#include <VL53L1X.h> // POLOLU tof sensor library
 
 // DO NOT USE PINS 15,16, 8, 3
 // 15 and 16 are used for flash
@@ -11,6 +13,9 @@ int echoc = 18;
 int trigc = 17;
 int echor = 6;
 int trigr = 5;
+//Time of flight varibles
+VL53L1X tof_sensor; //time of flight sensor 
+int tof_reading; 
 
 //H-bridge pins (motor control)
 #define ENA 1
@@ -21,6 +26,7 @@ int trigr = 5;
 #define IN4 41//black 
 #define LEDPIN 12
 #define BUTTONPIN 11
+
 // Pins for Tslots:
 // 6 Brown LED and 7 Black Transistor output
 
@@ -30,6 +36,7 @@ int trigr = 5;
 
 //initial distances on sensors are zero
 int rightdistance = 0, leftdistance = 0, centerdistance = 0;
+int tof_centerdistance;
 int US_THRESHOLD = 70; // ********************************************THRESHHOLD!!!!!!!!!
 int rotCnt;// rotation counter go forward after 14
 bool dir = 0;
@@ -61,7 +68,7 @@ int turnDelay = 100;
 int stopDelay = 100;
 //direction functions
 int previousTime; // pushbutton timer
-
+//***************************************************************************************Motor Functions************************************************
 void forward() {
   digitalWrite(IN1, HIGH);
   digitalWrite(IN2, LOW);
@@ -73,7 +80,6 @@ void forward() {
 }
 
 void back() {
-
   digitalWrite(IN1, LOW);
   digitalWrite(IN2, HIGH);
   digitalWrite(IN3, LOW);
@@ -84,7 +90,6 @@ void back() {
 }
 
 void right() {
-
   digitalWrite(IN1, HIGH);
   digitalWrite(IN2, LOW);
   digitalWrite(IN3, LOW);
@@ -95,7 +100,6 @@ void right() {
 }
 
 void left() {
-
   digitalWrite(IN1, LOW);
   digitalWrite(IN2, HIGH);
   digitalWrite(IN3, HIGH);
@@ -130,8 +134,8 @@ void fine_delay() {
 
 }
 */
-//IR sensor detection function
-bool detection(bool isDetecting)        //Measuring three angles(0.90.179) *********************************************************************
+//***********************************************************************************IR sensor detection function**************************************************
+bool detection(bool isDetecting)        
 {
   qtr.read(sensorValues);
   /*
@@ -160,6 +164,12 @@ bool detection(bool isDetecting)        //Measuring three angles(0.90.179) *****
     */
   }
   return isDetecting;
+}
+//***********************************************************************************Object Detection Sensor Fucntions********************************************************************************
+//Time of Flight sensor Function
+int tof_detect(){
+  tof_reading = tof_sensor.readRangeSingleMillimeters() / 10; //in cm
+  return (int) tof_reading;
 }
 
 //ultrasonic left sensor function
@@ -207,6 +217,12 @@ int distance_right() {
 void setup() {// ***********************************************************************************************************
 
   Serial.begin(115200);
+  
+  //initializing time of flight sensor
+  Wire.begin();// might need to set actual pins used
+  tof_sensor.init();
+  tof_sensor.setTimeout(60); // tof sensor timeout
+  
   //initializing ultrasonic pins
   pinMode(echol, INPUT);
   pinMode(trigl, OUTPUT);
@@ -271,10 +287,13 @@ void loop() // *****************************************************************
   currentMotorTime = millis();
   turnCurrent = millis();// extra timers
   currentStop = millis();
+
+  tof_centerdistance = tof_detect();
   centerdistance = distance_center();
   rightdistance = distance_right();
   leftdistance = distance_left();
   isDetecting = detection(isDetecting);
+  
   // DELETE ME!!
   /*
   centerdistance = 0;
