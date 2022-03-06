@@ -30,6 +30,7 @@ int trigr = 5;
 
 //initial distances on sensors are zero
 int rightdistance = 0, leftdistance = 0, centerdistance = 0;
+int US_THRESHOLD = 70; // ********************************************THRESHHOLD!!!!!!!!!
 int rotCnt;// rotation counter go forward after 14
 bool dir = 0;
 int TIMEOUT = 7000; // ultrasonic timeout
@@ -50,13 +51,14 @@ long int motorStartTime;
 long int currentMotorTime;
 long int turnStart;
 long int turnCurrent;
-long int stopTimer;
+long int stopTime;
 long int currentStop;
 bool movingForward, movingRight, movingLeft,isStopped = false;
 bool isDetecting;
+// delay knobs to be adjusted
 int forwardDelay = 100; // delay for motor control
 int turnDelay = 100;
-int stopDelay = 400;
+int stopDelay = 100;
 //direction functions
 int previousTime; // pushbutton timer
 
@@ -145,15 +147,17 @@ bool detection(bool isDetecting)        //Measuring three angles(0.90.179) *****
   if (sensorValues[0] < 100 || sensorValues[1] < 100) // front 2 sensors
   {
     back();
-    delay(500);
+    delay(200);
     isDetecting = false;
+    
   }
   else if (sensorValues[2] < 100 || sensorValues[3] < 100)// back 2 sensors
   {
+    /*
     forward();
-    delay(500);
+    delay(200);
     isDetecting = false;
-    
+    */
   }
   return isDetecting;
 }
@@ -199,6 +203,7 @@ int distance_right() {
   Serial.println(right_distance);
   return (int)right_distance;
 }
+
 void setup() {// ***********************************************************************************************************
 
   Serial.begin(115200);
@@ -253,7 +258,12 @@ void setup() {// ***************************************************************
   //********************************************************** Start button **********************************************************
   rotCnt = 0;
   motorStartTime = -200;
+  stopTime = -200;
+  turnStart = -200;
   isDetecting = false;
+  isStopped = true;
+  movingForward = false;
+  movingRight = false;
 }
 
 void loop() // **************************************************************************************************************
@@ -265,11 +275,17 @@ void loop() // *****************************************************************
   rightdistance = distance_right();
   leftdistance = distance_left();
   isDetecting = detection(isDetecting);
+  // DELETE ME!!
+  /*
+  centerdistance = 0;
+  rightdistance = 0;
+  leftdistance = 0;
+  */
   while(isDetecting)
   {
     isDetecting = detection(isDetecting);
   }
-  if (centerdistance <= 50 && centerdistance !=0)
+  if (centerdistance <= US_THRESHOLD && centerdistance !=0)
   {
     if(centerdistance < 5)
     {
@@ -280,13 +296,14 @@ void loop() // *****************************************************************
       movingLeft = false;
       movingRight = false;
       movingForward = true;
+      isStopped = false;
       forward();
       motorStartTime = millis();
     }
     rotCnt = 0;
     //Serial.println("Count reset");
   }
-  else if (leftdistance <= 50 && leftdistance !=0)
+  else if (leftdistance <= US_THRESHOLD && leftdistance !=0)
   {
     if (!movingRight || (turnCurrent - turnStart) > turnDelay)
     {
@@ -294,13 +311,14 @@ void loop() // *****************************************************************
       movingLeft = true;
       movingRight = true;
       movingForward = false;
+      isStopped = false;
       //stopp(); // added stop
       right();
       turnStart = millis();
     }
-    rotCnt = 0;
+    //rotCnt = 0;
   }
-  else if (rightdistance <= 50 && rightdistance !=0)
+  else if (rightdistance <= US_THRESHOLD && rightdistance !=0)
   {
     if (!movingRight || (turnCurrent - turnStart) > turnDelay)
     {
@@ -308,45 +326,53 @@ void loop() // *****************************************************************
       movingLeft = false;
       movingRight = true;
       movingForward = false;
+      isStopped = false;
       //motorBuffer(); // added stop
       left();
       turnStart = millis();
     }
-    rotCnt = 0;
+    //rotCnt = 0;
   }
   else if (rotCnt >= 13) // Rotation change code
   {
     if (!movingForward || (currentMotorTime - motorStartTime) > forwardDelay)
     {
       motorBuffer();
+      movingLeft = false;
+      movingRight = false;
       movingForward = true;
+      isStopped = false;
       forward();
       motorStartTime = millis();
     }
     rotCnt = 0;
-    dir = dir ^ 1;
     //Serial.println("dir has changed");
   }
     else
     {
-      if (!movingRight || (turnCurrent - turnStart) > turnDelay)//move right
+      if((turnCurrent - turnStart > turnDelay) && movingRight)
       {
-        if(movingRight)
+        if(!isStopped)
         {
-          if(!isStopped || currentStop - stopTimer < stopDelay)
-          {
-            stopp();
-            isStopped = true;
-            stopTimer = millis();
-          }
+          isStopped = true;
+          stopp();
+          stopTime = millis();
         }
-        movingLeft = false;
+        else if(currentStop - stopTime > stopDelay)
+        {
+          movingRight = false;
+        }
+      }
+      else if (!movingRight || (turnCurrent - turnStart) > turnDelay)//turn delay is 100
+      {
         movingRight = true;
         movingForward = false;
-        right();
-        turnStart = millis();
+        isStopped = false;
+        right(); // start turn
+        turnStart = millis(); // start timer
+        rotCnt = rotCnt + 1;
       }
-    }
-    rotCnt = rotCnt + 1;
+      Serial.println(rotCnt);
+      }
   isDetecting = detection(isDetecting);
 }
