@@ -1,20 +1,35 @@
+<<<<<<< HEAD:maru_going_straight/maru_going_straight.ino
 // Parameters
 const int drive_distance = 1000 ;   // cm
 const int motor_power = 120;      // 0-255
+=======
+const int drive_distance = 50;   // cm
+const int motor_power = 200;      // 0-255
+>>>>>>> 7109542c5becbb10363b8213339f6f9b5e731102:maru_going_straight.ino
 const int motor_offset = 5;       // Diff. when driving straight
 const int wheel_d = 67;           // Wheel diameter (mm)
 const float wheel_c = PI * wheel_d; // Wheel circumference (mm)
-const int counts_per_rev = 210.48;   // 210.48 
+const int counts_per_rev = 384;   // (4 pairs N-S) * (48:1 gearbox) * (2 falling/rising edges) = 384
 
 // Pins
+<<<<<<< HEAD:maru_going_straight/maru_going_straight.ino
 const int enc_l_pin = 19;          // Motor A
 const int enc_r_pin = 20;          // Motor B
+=======
+const int enc_l_pin = 35;          // Motor A
+const int enc_r_pin = 36;          // Motor B
+>>>>>>> 7109542c5becbb10363b8213339f6f9b5e731102:maru_going_straight.ino
 const int pwma_pin = 1;
 const int ain1_pin = 42;
 const int ain2_pin = 2;
 const int pwmb_pin = 39;
+<<<<<<< HEAD:maru_going_straight/maru_going_straight.ino
 const int bin1_pin = 41;
 const int bin2_pin = 40;
+=======
+const int bin1_pin = 40;
+const int bin2_pin = 41;
+>>>>>>> 7109542c5becbb10363b8213339f6f9b5e731102:maru_going_straight.ino
 const int stby_pin = 10;
 
 // Globals
@@ -101,7 +116,7 @@ void driveStraight(float dist, int power) {
     drive(power_l, power_r);
 
     // Number of ticks counted since last time
-    diff_l = num_ticks_l - enc_l_prev;
+    diff_l = num_ticks_l - enc_l_prev; // DIFFERENCE BETWEEN current value and previous
     diff_r = num_ticks_r - enc_r_prev;
 
     // Store current tick counter for next time
@@ -139,8 +154,8 @@ void enableMotors(boolean en) {
 void drive(int power_a, int power_b) {
 
   // Constrain power to between -255 and 255
-  power_a = constrain(power_a, -255, 255);
-  power_b = constrain(power_b, -255, 255);
+  power_a = constrain(power_a, -220, 220);
+  power_b = constrain(power_b, -220, 220);
 
   // Left motor direction
   if ( power_a < 0 ) {
