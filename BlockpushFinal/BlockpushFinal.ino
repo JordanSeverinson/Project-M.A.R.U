@@ -29,15 +29,16 @@ int tof_reading;
 
 // Pins for Tslots:
 // 6 Brown LED and 7 Black Transistor output
-
+#define scl 19
+#define sda 20
 //speed of robot maybe add dif. speeds
 #define carspeed 120
-#define ramspeed 200
+#define ramspeed 220
 
 //initial distances on sensors are zero
 int rightdistance = 0, leftdistance = 0, centerdistance = 0;
 int tof_centerdistance;
-int US_THRESHOLD = 70; // ********************************************THRESHHOLD!!!!!!!!!
+int US_THRESHOLD = 50; // ********************************************THRESHHOLD!!!!!!!!!
 int rotCnt;// rotation counter go forward after 14
 bool dir = 0;
 int TIMEOUT = 7000; // ultrasonic timeout
@@ -46,7 +47,7 @@ int TIMEOUT = 7000; // ultrasonic timeout
 QTRSensors qtr;
 const uint8_t SensorCount = 4;
 uint16_t sensorValues[SensorCount];
-
+volatile int customSpeed;
 //IR Sensor pins ********************************************
 //int LeftFrontIRPin = 7;
 //int RightFrontIRPin = 4;
@@ -62,14 +63,24 @@ long int stopTime;
 long int currentStop;
 bool movingForward, movingRight, movingLeft,isStopped = false;
 bool isDetecting;
-// delay knobs to be adjusted
+// ************************************************************delay knobs to be adjusted
 int forwardDelay = 100; // delay for motor control
-int turnDelay = 100;
-int stopDelay = 100;
+int turnDelay = 50;
+int stopDelay = 80;
+int tofThreshold = 60;
 //direction functions
 int previousTime; // pushbutton timer
 //***************************************************************************************Motor Functions************************************************
-void forward() {
+void forward(int cspeed) {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  analogWrite(ENA, cspeed);
+  analogWrite(ENB, cspeed);
+  // Serial.println("forward");
+}
+void ram() {
   digitalWrite(IN1, HIGH);
   digitalWrite(IN2, LOW);
   digitalWrite(IN3, HIGH);
@@ -78,7 +89,6 @@ void forward() {
   analogWrite(ENB, ramspeed);
   // Serial.println("forward");
 }
-
 void back() {
   digitalWrite(IN1, LOW);
   digitalWrite(IN2, HIGH);
@@ -135,7 +145,7 @@ void fine_delay() {
 }
 */
 //***********************************************************************************IR sensor detection function**************************************************
-bool detection(bool isDetecting)        
+void detection()        
 {
   qtr.read(sensorValues);
   /*
@@ -147,23 +157,20 @@ bool detection(bool isDetecting)
     Serial.println(sensorValues[2]);
     Serial.print("Back Left IR sensor: ");
     Serial.println(sensorValues[3]);
-    delay(500);*/
+    delay(500);
+    */
   if (sensorValues[0] < 100 || sensorValues[1] < 100) // front 2 sensors
   {
     back();
     delay(200);
-    isDetecting = false;
     
   }
   else if (sensorValues[2] < 100 || sensorValues[3] < 100)// back 2 sensors
   {
-    /*
-    forward();
+    forward(ramspeed);
     delay(200);
     isDetecting = false;
-    */
   }
-  return isDetecting;
 }
 //***********************************************************************************Object Detection Sensor Fucntions********************************************************************************
 //Time of Flight sensor Function
@@ -219,9 +226,9 @@ void setup() {// ***************************************************************
   Serial.begin(115200);
   
   //initializing time of flight sensor
-  Wire.begin();// might need to set actual pins used
+  Wire.begin(19, 20);// might need to set actual pins used
   tof_sensor.init();
-  tof_sensor.setTimeout(60); // tof sensor timeout
+  //  tof_sensor.setTimeout(60); // tof sensor timeout
   
   //initializing ultrasonic pins
   pinMode(echol, INPUT);
@@ -276,10 +283,10 @@ void setup() {// ***************************************************************
   motorStartTime = -200;
   stopTime = -200;
   turnStart = -200;
-  isDetecting = false;
   isStopped = true;
   movingForward = false;
   movingRight = false;
+  customSpeed = carspeed;
 }
 
 void loop() // **************************************************************************************************************
@@ -289,10 +296,11 @@ void loop() // *****************************************************************
   currentStop = millis();
 
   tof_centerdistance = tof_detect();
+  Serial.println(tof_centerdistance);
   centerdistance = distance_center();
   rightdistance = distance_right();
   leftdistance = distance_left();
-  isDetecting = detection(isDetecting);
+  detection();
   
   // DELETE ME!!
   /*
@@ -300,23 +308,22 @@ void loop() // *****************************************************************
   rightdistance = 0;
   leftdistance = 0;
   */
-  while(isDetecting)
+  if (tof_centerdistance < 50)
   {
-    isDetecting = detection(isDetecting);
+    customSpeed = ramspeed;
+        
   }
-  if (centerdistance <= US_THRESHOLD && centerdistance !=0)
+  if (centerdistance <= US_THRESHOLD && centerdistance !=0 || (tof_centerdistance < tofThreshold && tof_centerdistance !=0))
   {
-    if(centerdistance < 5)
-    {
-      isDetecting = true;
-    }
     if (!movingForward || (currentMotorTime - motorStartTime) > forwardDelay)
     {
       movingLeft = false;
       movingRight = false;
       movingForward = true;
       isStopped = false;
-      forward();
+      forward(customSpeed);
+      Serial.print("speed: ");
+      Serial.println(customSpeed);
       motorStartTime = millis();
     }
     rotCnt = 0;
@@ -361,7 +368,7 @@ void loop() // *****************************************************************
       movingRight = false;
       movingForward = true;
       isStopped = false;
-      forward();
+      forward(customSpeed);
       motorStartTime = millis();
     }
     rotCnt = 0;
@@ -389,9 +396,10 @@ void loop() // *****************************************************************
         isStopped = false;
         right(); // start turn
         turnStart = millis(); // start timer
+        customSpeed = carspeed;
         rotCnt = rotCnt + 1;
       }
       Serial.println(rotCnt);
       }
-  isDetecting = detection(isDetecting);
+  detection();
 }
