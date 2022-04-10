@@ -171,7 +171,7 @@ void setup() {
 }
 
 void loop() {
-  detection();
+  // do nothing
 }
 void driveBack(float dist, int power) {
 
