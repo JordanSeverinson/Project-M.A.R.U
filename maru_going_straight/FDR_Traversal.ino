@@ -63,7 +63,7 @@ void detection()
     brake();
     turn(turningDistance, motor_power);
     brake();
-    driveStraightB(drive_distance, motor_power);
+    driveStraightWithoutIR(drive_distance, motor_power);
     
   }
   else if (sensorValues[2] > 100 && sensorValues[3] > 100)// back 2 sensors
@@ -71,7 +71,7 @@ void detection()
     brake();
     driveBack(backDistance, backMotorPower);
     turn(turningDistance, motor_power);
-    driveStraightB(drive_distance, motor_power);
+    driveStraightWithoutIR(drive_distance, motor_power);
   }
 }
 int distance_left() {
@@ -166,7 +166,7 @@ void setup() {
   analogWrite(pwma_pin, motor_power);
   analogWrite(pwmb_pin, motor_power);
   delay(100);*/
-  driveStraightA(9000, motor_power);
+  driveStraightWithIR(9000, motor_power);
   //driveStraightA(drive_distance, motor_power);
 }
 
@@ -251,7 +251,7 @@ void driveBack(float dist, int power) {
   // Brake
   brake();
 }
-void driveStraightA(float dist, int power) {
+void driveStraightWithIR(float dist, int power) {
 
   unsigned long num_ticks_l;
   unsigned long num_ticks_r;
@@ -345,7 +345,7 @@ turnStartTime = 0;
   // Brake
   brake();
 }
-void driveStraightB(float dist, int power) {
+void driveStraightWithoutIR(float dist, int power) {
 
   unsigned long num_ticks_l;
   unsigned long num_ticks_r;
